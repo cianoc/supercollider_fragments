@@ -1,0 +1,642 @@
+
+* Server
+Server.default = s = Server.internal.boot;
+* Music Theory
+** How to remember harmonics
+An octave is 2:1, fifth is 3:2, fourth is
+4:3, third is 5:4, minor third is 6:5, second is 9:8.
+
+So start at 2:1, and work up until you reach second. And all are n+1:n
+** Peaks and valleys in wave forms
+The more peaks and valleys, the more deconstructive interference, the more dissonance.
+* Language
+** Variables
++ Must begin with lower case letter.
++ Declared using var
+  + var x;
+
+Unless they are declared as a global, they must be declared in a function block.
+*** Global Variables
+Use a ~
+
+These do not require the var syntax.
+*** Global 'scratch' variables
+a-z are initiated at launch.
+** dup
+applied to a function it duplicates it n times. Useful with mix.
+** Multi Channel Expansion
+This works using arrays. What's interesting is that if you have multiple arrays, the smaller one just loops round. So:
+
+#+BEGIN_SRC
+(
+{SinOsc.ar(
+LFNoise0.ar([10, 12, 14, 6], 400, [800, 1000]),
+mul: [0.3, 0.5])}.scope(4)
+)
+
+//Becomes this in each channel:
+(
+//channel 1
+{SinOsc.ar(
+LFNoise0.ar(10, 400, 800),
+mul: 0.3)}.scope(1)
+)
+
+(
+//channel 2
+{SinOsc.ar(
+LFNoise0.ar(12, 400, 1000),
+mul: 0.5)}.scope(1)
+)
+
+(
+//channel 3
+{SinOsc.ar(
+LFNoise0.ar(14, 400, 800),
+mul: 0.3)}.scope(1)
+)
+(
+//channel 4
+{SinOsc.ar(
+LFNoise0.ar(6, 400, 1000),
+mul: 0.5)}.scope(1)
+)
+#+END_SRC
+** Array Expansions
+(1..12) // [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+(1, 3..13) // [1, 3, 5, 7, 9, 11, 13]
+** Array and Sequence Functions
+*** WrapAt
+wrapAt will take an array, and wrap it at position x, so it becomes effectively an infinite list. Super useful...
+*** Pick an element at random
+choose
+** Random numbers
+*** +- a random number
+use rand2
+** Fill an Array
+
+#+BEGIN_SRC
+//fill an array with the number of this iteration
+Array.fill(16, {arg counter; counter})
+//fill an array with random numbers
+Array.fill(16, {arg counter; [counter, rrand(20, 100)]})
+//fill an array with multiples of counter
+Array.fill(16, { |counter| counter*3})
+//fill an array with SinOsc objects, each with a freq of the counter*100
+Array.fill(16, { |counter| SinOsc.ar(counter*100)})
+#+END_SRC
+** Fill an array with a series
+series is useful. Takes:
++ size
++ Start
++ step
+** Fill an array and mix it
+Mix.fill --> basically array.fill, followed by mix
+** Normalize an array
+normalizeSum
+
+Returns the Array resulting from :
+(this / this.sum)
+so that the array will sum to 1.0. This is useful for using with windex or wchoose.
+** Manipulate an array
+choose (picks one at random)
+
+Scramble, reverse
+** Anonymous functions
+just enclose it in brackets.
+
+Args can either be '|arg|' or arg a; arg b;
+** Function returning an array
+{3, 4} => [3,4]
+* Sequencing
+** Using stepper
+*** basic idea
+#+BEGIN_SRC
+(
+var pitchArray; //Declare a variable to hold the array
+//load the array with midi pitches
+pitchArray = [60, 62, 64, 65, 67, 69, 71, 72].midicps;
+{
+SinOsc.ar(
+Select.kr(
+Stepper.kr(Impulse.kr(8), max: pitchArray.size-1),
+pitchArray),
+mul: 0.5)
+}.play
+)
+#+END_SRC
+
+*** Can go as many steps as you like
+Stepper has an argument to control how it advances through the array. A value of 1 will
+move forward one index at a time. If that value is negative, it will move backward one step at
+a time. If it is 3, it will move three steps.
+** Using Task
+Task allows this loop to be paused, so it's run each
+
+#+BEGIN_SRC
+(
+r = Task({
+	{
+		Synth("SH", [
+			\rate, exprand(3.0, 22.0),
+			\decay, rrand(0.5, 15.0),
+			\att, [0, rrand(0, 3.0)].choose,
+			\offset, rrand(100, 2000)]);
+		rrand(1.0, 5.0).wait; //wait time between repetitions
+	}.loop; //repeat this function
+}).play
+)
+r.stop;
+#+END_SRC
+* Server
+** Random seed
+To seed a random process on the server use RandSeed. This ugen can be triggered, so you
+can reset the seed over and over. The first argument is the trigger, the second the seed. Run
+the first and second examples several times. Let the third one run. It will reset every 5
+seconds.
+
+#+BEGIN_SRC
+// 14.22. Server random seed
+// different every time
+{SinOsc.ar(LFNoise0.kr(7, 12, 72).midicps, mul: 0.5)}.play
+
+// same every time
+(
+{
+RandSeed.kr(1, 1956);
+SinOsc.ar(LFNoise0.kr(7, 12, 72).midicps, mul: 0.5)
+}.play
+)
+// resets every 5 seconds
+(
+{
+RandSeed.kr(Impulse.kr(1/5), 1956);
+SinOsc.ar(LFNoise0.kr(7, 12, 72).midicps, mul: 0.5)
+}.play
+)
+#+END_SRC
+
+Finally, what if you want the seed to be chosen in the regular way (using the clock), but you
+want to know what it is so you can reproduce that series later for debugging or because you
+liked that version? Here's how.
+14.23. Post clock seed
+
+#+BEGIN_SRC
+thisThread.randSeed = Date.seed.postln; {100.rand}.dup(20);
+(
+{
+RandSeed.kr(Impulse.kr(1/5), Date.seed.postln);
+SinOsc.ar(LFNoise0.kr(7, 12, 72).midicps, mul: 0.5)
+}.play
+)
+#+END_SRC
+The seed is taken from the clock and posted to the data window. If you want to reproduce
+that version, replace Date.seed.postln with the number posted to the window.
+* Music Theory
+** Midi Notes
+midiratio -> Takes a midi semitone value and returns a ratio (in frequencies I'm guessing).
+** Sequences
+#+BEGIN_SRC
+// Retrograde of a 12-tone set
+[0, 11, 10, 1, 9, 8, 2, 3, 7, 4, 6, 5].reverse
+// Inversion of a 12-tone set
+12 - [0, 11, 10, 1, 9, 8, 2, 3, 7, 4, 6, 5]
+// And of course, retrograde inversion (see where I'm heading?)
+(12 - [0, 11, 10, 1, 9, 8, 2, 3, 7, 4, 6, 5]).reverse
+// Random transpositions of a 12-tone set
+([0, 11, 10, 1, 9, 8, 2, 3, 7, 4, 6, 5] + 12.rand)%12
+// Random permutation of a 12-tone set (out of 479,001,600)
+[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].permute(479001600.rand) + 60
+#+END_SRC
+
+* Functions
+Anonymous functions are fine.
+
+Can pass in extra arguments:
+
+func = { arg ... a;
+
+or func = {|... a|
+
+I prefer the | thing. Makes it clearer, and just looks cleaner.
+* Random Processes
+** Creating random deviations
+*** Coin
+coin toss, where the probability of true is a number between 0 and 1
+* Ugens
+** Impulses
+*** Impulse
+Generates a periodic impulse.
+*** Dust
+Generates a random impulse, where there are an average number of pulses per second.
+** Scaling
+For Ugens with a default range of +1 to -1:
++ The add is the center value of a range.
++ The mul is the amount of deviation above and below the center.
++ The lowest value is the add minus the mul.
++ The highest value is the add plus the mul.
++ The range is the mul times 2.
+
+For Ugens with a default range of 0 to 1:
++ The add is the low end of the range
++ The mul is the amount of deviation above the low.
++ The mul + add is the high end of the range
++ The mul is the range
+
+Also can use range:
+#+BEGIN_SRC
+{
+SinOsc.ar(
+SinOsc.kr(4).range(300, 500),
+)
+}.play(s)
+#+END_SRC
+** Noise
+*** LFNoise
+random values at a rate specified
+*** LFNoise1
+Randomly interlopated values at a rate specified
+** Klank
+This is great. You feed in resonance frequencies, amplitudes and decay rates. Think its really for reverb, but hey.
+
+When used with noise:
+
+In these examples the sound is constantly evolving because the
+excitation source (input) is noise, or a random set of numbers flying
+by at 44k a second (the random number series mentioned above). I like
+to think of these examples as bowing a resonant body. The bow is the
+random number series, the Klank is the resonant body, which shapes the
+sound. The physical body or space described by Klank extracts patterns
+from the noise, but the noise gives variety to the body or space.
+** DetectSilence
+When input falls below a threshhold, evaluate doneAction. If the input
+signal starts with silence at the beginning of the synth's duration,
+then DetectSilence will wait indefinitely until the first sound before
+starting to monitor for silence.
+* Envelopes
+Any change to positive triggers an enevelope.
+** Percussion
+Just two values (atack and decay)
+** ADSR
+What you'd expect really
+** new
+Use this with an array of values, and that is your new envelope, no matter how crazy...
+
+First array is the levels, the second array is the durations (obviously the second should be one shorter).
+* Randomness
+** Client, vs server
+Need to do it differently on the server, as it is run only once.
+
+rrand is fine on the client. But on the server it will be the same number for all synths, as it's created on the client. Instead, use: Rand.
+* Synths
+** SynthDef
+(SynthDef(\SynthName 
+    {|t_trig=0, freq=440| 
+    //rest of function}.add)
+
+The last line should be out.ar(channel, sound).
+
+e.g. out.ar(0, out);
+*** Special arguments
+*audio rate*
+
+Arguments that begin with "a_" (e.g. a_input), or that are specified as \ar in the def's rates argument (see below), will be able to read and audio rate bus when mapped to it with /n_mapa.
+
+*initial rate* 
+
+Arguments that begin with "i_" (e.g. i_freq), or that are specified as
+\ir in the def's rates argument (see below), will be static and
+non-modulatable. They will not respond to /n_set or /n_map. This is
+slightly more efficient in terms of CPU than a regular arg.  
+
+*trigger rate*
+
+Arguments that begin with "t_" (e.g. t_trig), or that are specified as
+\tr in the def's rates argument (see below), will be made as a
+TrigControl. Setting the argument will create a control-rate impulse
+at the set value. This is useful for triggers.
+
+*literal arrays*
+
+Arguments which have literal arrays as default values (see Literals)
+result in multichannel controls, which can be set as a group with
+Node-setn or /n_setn. When setting such controls no bounds checking is
+done, so you are responsible for making sure that you set the correct
+number of arguments.
+** Stop synth (and release resources)
+{synth variable}.free
+** Initiate a synth
+b = Synth("SH", [\offset, 400, \att, 3.0, \decay, 0]);
+** Change variables
+a.set(\offset, 1000)
+** Lag time for transitions
+Can do this with an array at the end (each element corresponds to a parameter:
+
+#+BEGIN_SRC
+(
+SynthDef("SH",
+	{
+		arg rate = 12, att = 0, decay = 5.0, offset = 400;
+		var env, out, pan;
+		pan = LFNoise1.kr(1/3);
+		env = EnvGen.kr(Env.perc(att, decay), doneAction: 2);
+		out = Pan2.ar(
+			Blip.ar(LFNoise0.ar(rate, min(100, offset), offset),
+				(env)*12 + 1, 0.3),
+			pan)*env;
+		Out.ar(0, out)
+	},
+	[0.5, 0.1, 0, 4] //transition for each argument above
+).play
+)
+#+END_SRC
+** Saving Synths
+Peversely this is done using load:
+#+BEGIN_SRC
+(//Save to file and load in server "s"
+SynthDef("SH",
+	{
+		arg rate = 12, att = 0, decay = 5.0, offset = 400;
+		var env, out, pan;
+		pan = LFNoise1.kr(1/3);
+		env = EnvGen.kr(Env.perc(att, decay), doneAction: 2);
+		out = Pan2.ar(
+			Blip.ar(LFNoise0.ar(rate, min(100, offset), offset),
+				(env)*12 + 1, 0.3),
+			pan)*env;
+		Out.ar(0, out)
+}).load(s))
+
+//Now quit SC, look in the synthdefs folder for "SH.scsyndef"
+//Launch SC and run these lines
+s = Server.internal; s.boot;
+a = Synth("SH", [\rate, 10, \offset, 200], target: s);
+#+END_SRC
+** Browsing synth definition arguments
+#+BEGIN_SRC
+(
+    // a synthdef browswer
+    SynthDescLib.global.read;
+    SynthDescLib.global.browse;
+)
+#+END_SRC
+** Server, vs client
+Things like if/else don't really work the way you want them to. The code is only run once. Also randomness is totally different.
+* Buses
+** Basics
+You inter-connect audio busses using Out.ar and In.ar. The control busses use Out.kr and
+In.kr. There are 128 audio busses and 4096 control busses.
+
+e.g. out.ar(1, SinOsc.ar);
+** Synths
+You can have a bus number as an argument for a synth, same as any other argument:
+
+#+BEGIN_SRC
+a = SynthDef("PatchableSine", {arg busInNum = 0;
+	Out.ar(0, SinOsc.ar(In.kr(busInNum, 2), 0, 0.3))}).play(s);
+)
+#+END_SRC
+** Order
+Counter-intuitive. The last one started goes to the front of the bus. So:
++ Synth1
++ Filter1
+
+won't work, as filter is at the front of the bus.
+
+Can instead (probably smart thing to do), do the order explicitly:
+#+BEGIN_SRC
+Synth.head(s, "Saw");
+Synth.tail(s, "Filter");
+//Same
+Synth.tail(s, "Filter");
+Synth.head(s, "Saw");
+#+END_SRC
+** Dynamic Bus Allocation
+Bus.control -or- Bus.audio will return the next available bus.
+
+Note: This will only actually work if you use Bus all the time. Just using a hardwired number will be invisible to the dynamic bus allocation.
+
+To get the number do:
+#+BEGIN_SRC
+b = Bus.audio;
+b.index;
+#+END_SRC
+
+free it the usual way: b.free;
+
+Can get stereo by:
+#+BEGIN_SRC
+Bus.audio(s, 2);
+#+END_SRC
+** Groups
+Groups are useful for two reasons:
+1. They have a group order,
+   + so you know all synths in one group will come after the synths in another, no matter what order you add them.
+2. You can manipulate the group as a whole
+   + Send messages to the group (amplitude)
+   + Stop/start the group
+
+Important commands:
++ group.freeAll;
+
+THe group will still exist, but the synths are stopped
+
+You allocate to a group in the Synth argument.
+*** Group.head
+Use this to place a group at the head of it's parent (be it the server, another group). If you used an actual group for this command it would be head of that. Use the class, and it is placed at the head of the server.
+* Tools
++ scope (literally, a scope)
++ plot (plot a graph)
+** Scope
+This can be zoomed in if you need it.
+* Recording
+How to do it:
+#+BEGIN_SRC supercollider
+s.recSampleFormat = "int16";
+s.recChannels = 1; // for mono
+// saves file in the SC folder, will be overwritten if repeated
+s.prepareForRecord("audio1");
+// or saved in recordings folder of SC folder
+s.prepareForRecord("recordings/audio1");
+// or saved in Music folder (replace students with your user name)
+s.prepareForRecord("/Users/students/Music/audio1");
+// Then to record, don't use the button, but the following code.
+// Before running these lines go back and start a previous example
+// so you have something to record.
+s.record;
+// Then
+s.stopRecording;
+#+END_SRC
+* Notes
+** Midi notes
+Midi notes are:
++ C4 - 60
++ Half step is 1
++ C5 - 72 (12 half steps)
+
+Fortunately there is a method for generating the frequency of an equal tempered scale by way
+of MIDI. SC understands MIDI numbers, and can convert them to frequency. By way of
+review; the MIDI number for C4 is 60, and each half-step is 1. So C5 is 72, A4 is 69, and so
+on. To convert these to frequency, use the midicps message.
+** TODO Diatonic scale
+DegreeToKey
+* Using the mouse as input device
+** Exponential change
+Use this so that you get the mouse associated with notes, rather than frequency.
+
+#+BEGIN_SRC supercollider
+{SinOsc.ar(MouseX.kr(220, 880, 'exponential'), mul: 0.3)}.play;
+// or
+{SinOsc.ar(MouseX.kr(220, 880, 1), mul: 0.3)}.play
+#+END_SRC
+** Discrete notes
+Important thing to note here. We round the mouse number, so that we get discrete midi numbers. Then convert to frequency.
+
+#+BEGIN_SRC supercollider
+{SinOsc.ar(MouseX.kr(59.0, 81.0).round(1.0).midicps, mul: 0.3)}.play
+#+END_SRC
+* Process
+He starts off with a simple patch (maybe one oscillator).
+
+Then he puts together a couple of linked controls.
+
+Then he brings in mouse controls to experiment with static values.
+
+Then he thinks about other controls he could use to vary those values
+
+Then he thickens the patch with duplication, stereo expansion, random values and mixing.
+* Noise
+#+BEGIN_SRC
+{WhiteNoise.ar}.scope(1)
+{PinkNoise.ar}.scope(1)
+{BrownNoise.ar}.scope(1)
+{GrayNoise.ar}.scope(1)
+{Dust.ar(60)}.scope(1)
+#+END_SRC
+
+** White Noise
+Equal, which means it sounds less bright.
+** Pink Noise
+sounds equal across all octaves
+** BrownNoise
+Emphasises the high notes even more
+** GrayNoise
+Emphasizes the low noise
+* Filters
+Main ones are:
++ RLPF
++ RHPF
++ BPFC
+* Debugging Strategies
+** A/B Approach
+I sometimes also use a sort of A/B switch that takes advantage of the
+order in which code is run: top to bottom. The "safe" section is
+something that I know works, which I place below the lines I suspect
+are causing problems. Since it is below, it replaces any values above,
+the "suspect" values. Turn the "A/B" switch on and off by commenting
+out the bottom line. Run the first example, then uncomment the "this I
+know works" and run it again. The sentence “this is experimental” is
+replaced.
+
+15.12. commenting out
+#+BEGIN_SRC
+(
+a = "this is experimental";
+// a = "this I know works";
+a.postln
+)
+
+( // an example in real code
+{
+var chime, freqSpecs, burst, totalHarm = 10;
+var burstEnv, att = 0, burstLength = 0.0001;
+freqSpecs = `[ //"experimental" collection
+{rrand(100, 1200)}.dup(totalHarm), //freq array
+{rrand(0.3, 1.0)}.dup(totalHarm).normalizeSum.round(0.01), //amp array
+{rrand(2.0, 4.0)}.dup(totalHarm)]; //decay rate array
+//freqSpecs = `[ //"safe" collection
+// [100, 200] //freq array
+// [0.5, 0.5] //amp array
+// [0.1, 0.1]]; //decay rate array
+#+END_SRC
+
+When the second freqSpecs is commented it is not included in the
+patch. If you remove the comments then the safe section will replace
+the experimental section. (You don't have to comment out the
+experimental section, it is just reassigned.) If the patch then runs
+correctly, there is something wrong with the experimental part.
+** Check the system is working
+I also use this when I’m not getting any sound from several pages of
+complex code. To check to see if it’s a system problem, or something
+in my code, I place a simple SinOsc.ar as the last line of the
+function and that line will be played while everything above it is.
+** Printing Debug info
+You can add postln to the end of a variable/function, and the function will function normally (i.e. println just returns the value passed to it.
+
+e.g. Klank.ar(freqSpecs.postln, burst)
+
+can even place that inside a message chain.
+
+The post message prints to the post window, postln prints the object
+then begins a new line, postcln precedes that line with a comment
+("//"). This is useful if you are developing code in the post
+window. Your new post won't affect the code on subsequent trials.
+
+Also catArgs:
+"P, D, A, V ".catArgs(pitch, duration, amplitude, voice).postln
+
+"pch %\tdur %\tamp %\tvce %\n".postf(pitch, duration, amplitude,
+voice)
+
+"pch\t\tdur\t\tamp\t\tvce".postln;
+* Composition Techniques
+** Using Groups and Arrays for additive experiments
+See, how this changes the harmonics and other factors easily. Good way to quickly play in structured fashions (not to mention creating a GUI).
+
+#+BEGIN_SRC
+(
+//Create a synth
+SynthDef("ping",
+	{arg fund = 100, harm = 1, rate = 0.2, amp = 0.1;
+		a = Pan2.ar(SinOsc.ar(fund*harm, mul: amp) *
+			EnvGen.kr(Env.perc(0, 0.2), gate: Dust.kr(rate)), Rand(-1.0, 1.0));
+		Out.ar(0, a)
+}).load(s);
+)
+
+~synthGroup = Group.head(s);
+
+~all = Array.fill(12,
+	{arg i; Synth("ping", [\harm, i+1, \amp, (1/(i+1))*0.4],~synthGroup)});
+
+~synthGroup.set(\rate, 0.8);
+~synthGroup.set(\rate, 5);
+Array.fill(12, {arg i; i/2+1})
+// Change the amp of one node
+~all.at(6).set(\amp, 1);
+~all.at(6).set(\amp, 0.1);
+// Change all the harmonics using a formula. I checked the formulas
+// using this Array.fill(12, {arg i; i/2+1})
+~all.do({arg node, count; node.set(\harm, count/2+1)}); //1, 1.5, 2, etc.
+~all.do({arg node, count; node.set(\harm, count*2+1)}); //1, 3, 5, 7, etc.
+~all.do({arg node, count; node.set(\harm, count*1.25+1)});
+~all.do({arg node, count; node.set(\harm, count*1.138+1)});
+// Change the fundamental
+~synthGroup.set(\fund, 150);
+~synthGroup.set(\fund, 250);
+~synthGroup.set(\fund, 130);
+// Stop the nodes but not the group
+~synthGroup.freeAll;
+// Create a task that adds new synths
+r = Task({{Synth("ping",
+	[\fund, rrand(100, 2000), \rate, 2], ~synthGroup); 1.wait}.loop}).play
+// Slow down the attacks when it gets to be too many
+~synthGroup.set(\rate, 0.2);
+// Turn them all down. Note that new ones still have the old volume
+~synthGroup.set(\amp, 0.01);
+// Stop everything but the task
+~synthGroup.free;
+// Stop the task
+r.stop;
+#+END_SRC

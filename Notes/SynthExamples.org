@@ -1,0 +1,1080 @@
+
+* Sounds
+** Really Old School
+*** Wandering Sines
+Nice, if uninspiring, effect
+
+#+BEGIN_SRC
+(
+// Double click the parenthesis above to quickly select
+// the entire patch
+// Or use com-shift-b
+{
+	var out, delay;
+	out = SinOsc.ar( //Sine wave osc
+		abs( //This protects against negative values
+			LFNoise1.kr(
+				0.5, //frequency overall wandering
+				600, //range of overall wandering
+				LFSaw.kr(
+					1.5, //speed of the individual sweeps
+					mul: 50, //depth of sweep
+					add: 500 //range of sweep
+				)
+			)
+		),
+		0,
+		0.1 //volume, stay below 0.2
+	);
+	//delay
+	delay = CombN.ar(out,
+		3.0, //max delay
+		[1.35, 0.7], //actual delay, stay below max delay
+		6 //delay decay
+	);
+	Pan2.ar(out, 0) + delay
+}.play
+)
+#+END_SRC
+*** Random Sine Waves
+
+#+BEGIN_SRC
+( // <- double click the parenthesis
+{
+	Mix.ar(
+		Array.fill(5, // not too many values, could crash
+			{Pan2.ar(
+				SinOsc.ar(SinOsc.ar(1/10, rrand(0, 6.0), 200, 600)),
+				1.0.rand)}
+		)
+	)*0.02
+}.play
+)
+#+END_SRC
+*** Nice use of Blip
+Could do a lot ith this, especially if one built upon it with more interesting sounds.
+
+#+BEGIN_SRC 
+(
+{
+	var trig, out, delay;
+	trig = Impulse.kr(6); // trigger rate
+	out = Blip.ar(
+		TRand.kr(48, 72, trig).midicps, // range, in midi, of pitches
+		TRand.kr(1, 12, trig), // range of timbre
+		max(0, TRand.kr(-0.5, 0.4, trig)) // amplitudes
+	);
+	out = Pan2.ar(out, TRand.kr(-1.0, 1.0, trig));
+	out = out*EnvGen.kr(Env.perc(0, 3), trig);
+	out = Mix.ar({out}.dup(6))*0.2;
+	delay = CombL.ar(out, 2.0, 4/6, 6);
+	out + delay
+}.play
+)
+#+END_SRC
+*** Interesting rising sounds
+This is again interesting. Particular the way the sounds are combined.
+
+#+BEGIN_SRC
+(
+{
+	Mix.ar(
+		Array.fill(5, // number of oscillators
+			{arg c;
+				Pan2.ar(SinOsc.ar( // be sure the add is greater than the mul
+					LFSaw.ar((c*0.2 + 1)/3, mul: 500, add: 700)
+				), LFNoise0.kr(1)) // pan speed
+			}
+		)
+	)*0.1
+}.play
+)
+#+END_SRC
+
+*** Use of Dust with Rising Sounds
+Also, note the use of Klank. See myself using that a LOT
+
+#+BEGIN_SRC
+(
+{
+	Mix.ar(
+		{Pan2.ar(
+			Klank.ar(
+				`[Array.fill(3, {exprand(1000, 10000)}),
+					1, Array.fill(15, {rrand(1.0, 4.0)})],
+				Dust.ar(1/3, 0.1)),
+			LFTri.kr(rrand(3.0, 10.0)))}.dup(20)
+) }.play;
+)
+#+END_SRC
+*** Pretty
+Nice, but inessential
+
+#+BEGIN_SRC
+(
+// linear random waves
+{Mix.fill(12, // number of oscillators
+	{arg i;
+		Pan2.ar(SinOsc.ar(SinOsc.ar(
+			freq: MouseX.kr(rrand(0.1, 5.0), rrand(3.0, 20.0)), // speed of vibrato
+			mul: MouseY.kr(10, 50), // width of vibrato
+			add: rrand(200, 5000)), // freq of oscillators
+			mul: max(0, LFNoise0.kr(MouseX.kr(rrand(1, 6), rrand(6, 1))))), 1.0.rand2)
+	})*0.03
+}.play
+)
+#+END_SRC
+*** Very rudimentary additive synth
+Kind of nice, though I'd do away with the envelop
+
+#+BEGIN_SRC
+(
+// harmonic swimming
+play({
+	var fundamental, partials, out, offset;
+	fundamental = 200; // fundamental frequency
+	partials = 30; // number of partials per channel
+	out = 0.0; // start of oscil daisy chain
+	offset = Line.kr(0, -0.02, 60); // causes sound to separate and fade
+	partials.do({ arg i;
+		out = FSinOsc.ar(
+			fundamental * (i+1), // freq of partial
+			0,
+			max(0, // clip negative amplitudes to zero
+				LFNoise1.kr(
+					6 + [4.0.rand2, 4.0.rand2], // amplitude rate
+					0.02, // amplitude scale
+					offset // amplitude offset
+				)
+			),
+			out
+		)
+	});
+	out
+})
+)
+#+END_SRC
+
+*** Random impulses
+
+Funnish:
+#+BEGIN_SRC
+
+(
+{
+	Mix.fill(15,
+		{
+			var freq;
+			freq = exprand(100, 3000);
+			Pan2.ar(
+				SinOsc.ar(
+					freq * LFNoise1.kr(1/6, 0.4, 1),
+					mul: EnvGen.kr(
+						Env.perc(0, (freq**(-0.7))*100), Dust.kr(1/5))
+				), LFNoise1.kr(1/8)
+			)
+	})*0.3
+}.play
+)
+#+END_SRC
+** Special Effects
+*** Angry Birds
+
+#+BEGIN_SRC
+(
+{ //Noise (manic birds)
+	var lfo;
+	lfo = LFNoise1.ar(freq: [28, 27], mul: 400, add: 2000);
+	SinOsc.ar(lfo, mul: 0.5)
+}.play
+)
+#+END_SRC
+*** Lasers
+
+#+BEGIN_SRC
+{SinOsc.ar(EnvGen.kr(Env.adsr(0.1, 0.4, 0.8, 0.5), Dust.kr(1), 10000))}.play
+#+END_SRC
+** Modular
+*** Saw as an LFO
+Kind of interesting affect
+
+#+BEGIN_SRC
+(
+{ //Saw
+	var lfo;
+	lfo = LFSaw.ar(freq: 2, mul: -100, add: 600);
+	SinOsc.ar(lfo, mul: 0.5)
+}.play
+)
+#+END_SRC
+** Rhythm
+*** Synched Impulses
+
+#+BEGIN_SRC
+( // synchronized triggers
+{
+	var synch = 5;
+	SinOsc.ar(100, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(3/synch))) +
+	SinOsc.ar(300, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(7/synch))) +
+	SinOsc.ar(500, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(5/synch))) +
+	SinOsc.ar(700, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(2/synch))) +
+	SinOsc.ar(900, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(9/synch))) +
+	SinOsc.ar(1100, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(6/synch))) +
+	SinOsc.ar(1300, mul: EnvGen.kr(Env.perc(0, 1), Impulse.kr(1/synch))) * 0.1
+}.play
+)
+#+END_SRC
+** Instruments
+*** Bell
+Long durations are particularly nice with this envelope.
+
+#+BEGIN_SRC 
+SinOsc.ar(frequency,
+			mul: EnvGen.kr(Env.perc(0.001, duration),
+#+END_SRC
+
+* Synthesis Techniques
+** Additive
+*** Nice Buzzing Effect
+#+BEGIN_SRC
+(
+{
+	var speed = 14;
+	f = SinOsc.ar(1000, mul:150, add:300);
+	t = Impulse.kr(1/3);
+	Mix.ar([
+		SinOsc.ar(f*1, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/1),
+		SinOsc.ar(f*2, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/2),
+		SinOsc.ar(f*3, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/3),
+		SinOsc.ar(f*4, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/4),
+		SinOsc.ar(f*5, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/5),
+		SinOsc.ar(f*6, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/6),
+		SinOsc.ar(f*7, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/7),
+		SinOsc.ar(f*8, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/8),
+		SinOsc.ar(f*9, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/9),
+		SinOsc.ar(f*10, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/10),
+		SinOsc.ar(f*11, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/11),
+		SinOsc.ar(f*12, mul: LFNoise1.kr(rrand(speed, speed*2), 0.5, 0.5)/12)
+	])*0.5
+}.scope(1)
+)
+#+END_SRC
+
+*** Additive Saw
+Kind of redundant code, but has a nice sound to it. Could with a bit of randomness, or other controls, do something kind of nice with this.
+
+#+BEGIN_SRC
+(
+{
+	f = 100;
+	t = Impulse.kr(1/3);
+	Mix.ar([
+		SinOsc.ar(f*1, mul: EnvGen.kr(Env.perc(0, 1.4), t)/1),
+		SinOsc.ar(f*2, mul: EnvGen.kr(Env.perc(0, 1.1), t)/2),
+		SinOsc.ar(f*3, mul: EnvGen.kr(Env.perc(0, 2), t)/3),
+		SinOsc.ar(f*4, mul: EnvGen.kr(Env.perc(0, 1), t)/4),
+		SinOsc.ar(f*5, mul: EnvGen.kr(Env.perc(0, 1.8), t)/5),
+		SinOsc.ar(f*6, mul: EnvGen.kr(Env.perc(0, 2.9), t)/6),
+		SinOsc.ar(f*7, mul: EnvGen.kr(Env.perc(0, 4), t)/7),
+		SinOsc.ar(f*8, mul: EnvGen.kr(Env.perc(0, 0.3), t)/8),
+		SinOsc.ar(f*9, mul: EnvGen.kr(Env.perc(0, 1), t)/9),
+		SinOsc.ar(f*10, mul: EnvGen.kr(Env.perc(0, 3.6), t)/10),
+		SinOsc.ar(f*11, mul: EnvGen.kr(Env.perc(0, 2.3), t)/11),
+		SinOsc.ar(f*12, mul: EnvGen.kr(Env.perc(0, 1.1), t)/12)
+	])*0.5
+}.scope(1)
+)
+#+END_SRC
+*** Lovely bells
+#+BEGIN_SRC
+(
+{
+	t = Impulse.kr(1/3);
+	Mix.ar(
+		SinOsc.ar(
+			[60, 64, 67, 71, 74, 78].midicps,
+			mul: EnvGen.kr(
+				Env.perc(0, 1),
+				t,
+				levelScale: 1/(1..6),
+				timeScale: rrand(1.0, 3.0).dup
+			)
+		)
+	)*[0.3, 0.3]
+}.scope(1)
+)
+#+END_SRC
+*** Interesting drone
+#+BEGIN_SRC
+(
+{
+	Mix.ar(
+		Pan2.ar(
+			SinOsc.ar(
+				[40, 42, 43, 45, 47, 48, 41, 42].midicps,
+				mul: LFNoise1.kr(rrand(0.1, 0.5).dup(8), 0.5, 0.5)
+			),
+			1.0.rand2.dup(8)
+		)
+	)*0.2
+}.scope(1)
+)
+#+END_SRC
+*** Great inharmonic spectrum
+
+#+BEGIN_SRC
+{Mix.ar(
+	SinOsc.ar(
+		[72, 135, 173, 239, 267, 306, 355, 473, 512, 572, 626],
+		0, //phase
+		[0.25, 0.11, 0.12, 0.04, 0.1, 0.15, 0.05, 0.01, 0.03, 0.02, 0.12]
+))}.scope(1)
+#+END_SRC
+*** Random bells
+This is really lovely. Definite potential with this. Playing with the attack can yield some other interesting sounds (0.2 ish).
+
+#+BEGIN_SRC
+( // Let it run for a while, the strikes are random
+{
+	var trigger, partials = 12;
+	trigger = Dust.kr(3/7);
+	Pan2.ar(
+		Mix.ar(
+			{
+				SinOsc.ar(rrand(50.0, 4000)) *
+				EnvGen.kr(
+					Env.perc(0, rrand(0.2, 3.0)),
+					trigger,
+					1.0.rand
+				)
+			}.dup(partials)
+		)/partials,
+		1.0.rand2
+	)
+}.play
+)
+#+END_SRC
+*** Shimmering harmonics
+
+#+BEGIN_SRC
+(
+{
+	var harmonics = 16;
+	Mix.fill(harmonics,
+		{ arg count;
+			Pan2.ar(
+				FSinOsc.ar(
+					exprand(100, 2000),
+					mul: max(0, FSinOsc.kr(rrand(1/3, 1/6))*rrand(0.1, 0.9))),
+				1.0.rand2)
+		}
+	) / (2*harmonics)
+}.play;
+)
+#+END_SRC
+*** Decaying Gongs
+#+BEGIN_SRC
+({
+	var dur = 6, base, aenv, fenv, out, trig;
+	base = Rand(40, 100);
+	trig = SinOsc.ar(1/10);
+	out = Mix.fill(15,{
+		var thisDur;
+		thisDur = dur * rrand(0.5, 1.0);
+		aenv = EnvGen.kr(Env.perc(0, thisDur), trig);
+		fenv = EnvGen.kr(Env.new([0, 0, 1, 0], [0.25*thisDur, 0.75*thisDur, 0]), trig);
+		Pan2.ar(SinOsc.ar( Rand(base, base * 12) *
+			LFNoise1.kr(10, mul: 0.02 * fenv, add: 1), // freq
+			mul: aenv // amp
+		), ([1, -1].choose) * fenv)
+	}) * 0.05;
+	out
+}.play(s);
+
+{
+	var dur = 6, base, aenv, fenv, out, trig, detune;
+	base = Rand(40, 60);
+	detune = 0.1; // increase this number to detune the second bell
+	trig = SinOsc.ar(1/10, pi);
+	out = Mix.fill(15,
+		{ arg count;
+			var thisDur;
+			thisDur = dur * rrand(0.5, 1.0);
+			aenv = EnvGen.kr(Env.perc(0, thisDur), trig);
+			fenv = EnvGen.kr(Env.new([1, 1, 0, 1], [0.05*thisDur, 0.95*thisDur, 0]), trig);
+			Pan2.ar(SinOsc.ar( base*(count+1+ detune.rand) *
+				LFNoise1.kr(10, mul: 0.02 * fenv, add: 1), // freq
+				mul: aenv // amp
+			), ([1, -1].choose) * fenv)
+	}) * 0.05;
+	out
+}.play(s);)
+#+END_SRC
+*** Worth experimenting with
+Could get some interesting basic sounds from this, just by playing it a few times. In particular, could play around with the fund number (link it to a mouse.kr, for example. Rings slightly too much for my tastes at the moment, though.
+
+#+BEGIN_QUOTE
+(
+{
+	var trigger, fund;
+	trigger = Dust.kr(3/7);
+	fund = rrand(100, 400);
+	Mix.ar(
+		Array.fill(16,
+			{arg counter;
+				var partial;
+				partial = counter + 1;
+				Pan2.ar(
+					SinOsc.ar(fund*partial) *
+					EnvGen.kr(Env.adsr(0, 0, 1.0, 5.0),
+						trigger, 1/partial
+				) * max(0, LFNoise1.kr(rrand(5.0, 12.0))), 1.0.rand2)
+		})
+	)*0.5 //overall volume
+}.play
+)
+#+END_QUOTE
+*** Multiple sines, where one sine is basically the envelope
+Interesting, but not hugely useful on it's own.
+
+#+BEGIN_QUOTE
+(
+{
+	var harmonics = 16, fund, speeds;
+	speeds = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]/20;
+	fund = (MouseX.kr(0, 36).round(7) + 24).midicps;
+	Mix.fill(harmonics,
+		{ arg count;
+			Pan2.ar(
+				FSinOsc.ar(
+					fund * (count + 1),
+					mul: max(0, FSinOsc.kr(speeds.choose))),
+				1.0.rand2)
+		}
+	) / (2*harmonics)
+}.play;
+)
+#+END_QUOTE
+*** Shimmering timbres
+If you combine lots of sine waves, where their amplitude is set by a sine wave, you can get some nice shimmering timbres.
+*** Nice piano bass sound
+You'd nee to modify the envelope a bit, but there's potential here:
+
+#+BEGIN_QUOTE
+{
+	var dur = 6, base, aenv, fenv, out, trig, detune;
+	base = Rand(40, 60);
+	detune = 0.1; // increase this number to detune the second bell
+	trig = SinOsc.ar(1/10, pi);
+	out = Mix.fill(15,
+		{ arg count;
+			var thisDur;
+			thisDur = dur * rrand(0.5, 1.0);
+			aenv = EnvGen.kr(Env.perc(0, thisDur), trig);
+			fenv = EnvGen.kr(Env.new([1, 1, 0, 1], [0.05*thisDur, 0.95*thisDur, 0]), trig);
+			Pan2.ar(SinOsc.ar( base*(count+1+ detune.rand) *
+				LFNoise1.kr(10, mul: 0.02 * fenv, add: 1), // freq
+				mul: aenv // amp
+			), ([1, -1].choose) * fenv)
+	}) * 0.05;
+	out
+}.play(s);
+#+END_QUOTE
+*** More bells
+
+#+BEGIN_SRC
+(
+{
+	Mix.ar(Pan2.ar(
+		SinOsc.ar({rrand(300, 1200)}.dup(12), // freq
+			mul: EnvGen.kr(Env.perc(0, 2),
+				Dust.kr(1/3) // trigger density
+		)*0.1),
+		{rand2(1)}.dup(12)) // pan position)
+)}.play)
+#+END_SRC
+
+** Subtractive
+*** TODO Pink noise with narrow q
+Frequencies emerge. Nice blips, in a rather synthetic fashion.
+
+#+BEGIN_SRC
+{RLPF.ar(PinkNoise.ar(0.3), LFNoise0.kr([12, 12], 500, 500), 0.2)}.play
+#+END_SRC
+*** TODO Generates beautiful random drones
+Everything from phone rings, to low drones. Could be turned into a userful tool.
+
+#+BEGIN_SRC
+(
+{
+	Klank.ar(
+		`[{exprand(60, 10000)}.dup(15)],
+		PinkNoise.ar(0.005)
+	)
+}.scope(1);
+)
+#+END_SRC
+*** Bells / big cylinders that you hit
+Different types of noise effect the sound. So brown noise will change the sound so it is more basey.
+
+#+BEGIN_SRC
+(
+{
+	var chime, freqSpecs, burst, totalHarm = 10;
+	var burstEnv, att = 0, burstLength = 0.0001;
+	freqSpecs = `[
+		{rrand(100, 1200)}.dup(totalHarm), //freq array
+		{rrand(0.3, 1.0)}.dup(totalHarm).normalizeSum.round(0.01), //amp array
+		{rrand(2.0, 4.0)}.dup(totalHarm)]; //decay rate array
+	burstEnv = Env.perc(0, burstLength); //envelope times
+	burst = PinkNoise.ar(EnvGen.kr(burstEnv, gate: Impulse.kr(1))); //Noise burst
+	Klank.ar(freqSpecs, burst)*MouseX.kr(0.1, 0.8)
+}.scope(1)
+)
+#+END_SRC
+*** Kind of a plucked bell
+This is okay, but might be tweaked, such as by adding a bit of randomness:
+
+#+BEGIN_SRC
+(
+{
+	var chime, freqSpecs, burst, totalHarm = 10;
+	var burstEnv, att = 0, burstLength = 0.0001;
+	freqSpecs = `[
+		{rrand(1, 30)*100}.dup(totalHarm),
+		{rrand(0.1, 0.9)}.dup(totalHarm).normalizeSum,
+		{rrand(1.0, 3.0)}.dup(totalHarm)];
+	burstEnv = Env.perc(0, burstLength);
+	burst = PinkNoise.ar(EnvGen.kr(burstEnv, gate: Impulse.kr(1)));
+	Klank.ar(freqSpecs, burst)*MouseX.kr(0.1, 0.8)
+}.scope(1)
+)
+#+END_SRC
+
+So this has a more bell like and pleasing sound to it:
+
+#+BEGIN_SRC
+(
+{
+	var chime, freqSpecs, burst, totalHarm = 10;
+	var burstEnv, att = 0, burstLength = 0.0001;
+	freqSpecs = `[
+		{rrand(1, 30)*100*rrand(0.9, 1.1)}.dup(totalHarm),
+		{rrand(0.1, 0.9)}.dup(totalHarm).normalizeSum,
+		{rrand(1.0, 3.0)}.dup(totalHarm)];
+	burstEnv = Env.perc(0, burstLength);
+	burst = PinkNoise.ar(EnvGen.kr(burstEnv, gate: Impulse.kr(1)));
+	Klank.ar(freqSpecs, burst)*MouseX.kr(0.1, 0.8)
+}.scope(1)
+)
+#+END_SRC
+
+increasing further can be very nice indeed.
+
+increasing the attack to 0.1 gives a softer affect. higher than that can also be interesting.
+
+Playing with the number of harmonics has some interesting affects.
+
+Actually having less harmonics (like 5) gives a rather nice sound. As does having say 2 (close to maybe a bell with little resonance).
+
+Increasing burst length is well worth playing with as well.
+
+Increasing the attack leads to some interesting, if odd, sounds. Might be worth experimenting with different envelopes.
+
+long attacks could result in some kind of drone.
+
+Playing with odd harmonics, plus some randomness (between +- 10 and 20%) is quite nice.
+*** Lovely piece including chimes and 'atmosphere'
+The cavern is fascinating. Could use that in lots of ways.
+
+#+BEGIN_SRC
+(
+{
+	var totalInst, totalPartials, baseFreq, ampControl, chimes, cavern;
+	totalInst = 5; //Total number of chimes
+	totalPartials = 12; //Number of partials in each chime
+	baseFreq = rrand(200, 1000); //Base frequency for chimes
+	chimes = Mix.ar(
+		
+			Pan2.ar(
+				Klank.ar(`[
+					{baseFreq*rrand(1.0, 12.0)}.dup(totalPartials),
+					Array.rand(totalPartials, 0.3, 0.9),
+					Array.rand(totalPartials, 0.5, 6.0)],
+					Decay.ar(
+						Dust.ar(0.2, 0.02), //Times per second, amp
+						0.001, //decay rate
+						PinkNoise.ar //Noise
+			)), 1.0.rand2) //Pan position
+		}.dup(totalInst)
+	);
+	cavern = Mix.ar(
+		{
+			var base;
+			base = exprand(50, 500);
+			Klank.ar(
+				`[ //frequency, amplitudes, and decays
+					{rrand(1, 24) * base *
+						rrand(1.0, 1.1)}.dup(totalPartials),
+					Array.rand(totalPartials, 1.0, 5.0).normalizeSum
+				],
+				GrayNoise.ar( [rrand(0.03, 0.1), rrand(0.03, 0.1)])
+			)*max(0, LFNoise1.kr(3/rrand(5, 20), mul: 0.005))
+	}.dup(5));
+	cavern  + chimes
+}.play
+)
+#+END_SRC
+*** TODO Again fascinating textures
+This comes from the noise filters, which vary the amplitude and panning in an interesting way.
+
+#+BEGIN_SRC
+// Cavern variation
+(
+{
+	var totalPartials = 12;
+	Mix.ar(
+		{
+			var base;
+			base = exprand(50, 1000);
+			Pan2.ar(
+				Klank.ar(
+					`[ //frequency, amplitudes, and decays
+						{rrand(1, 24) * base *
+							rrand(1.0, 1.1)}.dup(totalPartials),
+						Array.rand(12, 1.0, 5.0).normalizeSum
+					],
+					GrayNoise.ar( rrand(0.03, 0.1))
+				)*max(0, LFNoise1.kr(6, mul: 0.005)),
+				LFNoise0.kr(1))
+	}.dup(5));
+}.play
+)
+#+END_SRC
+*** TODO Wheel effect with klank resonance
+This is pretty cool. Could be interesting to combine this in a regular structure. Say with different speeds in a recognizable pattern. And varying volume, so they pan in and out.
+
+#+BEGIN_SRC
+{
+	var totalPartials = 4;
+	Mix.ar(
+		{
+			var base;
+			base = exprand(50, 10000);
+			Pan2.ar(
+				Klank.ar(
+					`[ //frequency, amplitudes, and decays
+						{rrand(1, 24) * base *
+							rrand(1.0, 1.1)}.dup(totalPartials),
+						Array.rand(4, 1.0, 5.0).normalizeSum
+					],
+					GrayNoise.ar( rrand(0.03, 0.1))
+				)*max(0, SinOsc.kr(6/rrand(1, 10), mul: 0.005)),
+				LFNoise1.kr(1))
+	}.dup(8));
+}.play
+#+END_SRC
+*** TODO Lovely structure
+Kind of fascinating structure. Would be interesting to remove some of the randomness for this and do something more structured again.
+
+#+BEGIN_SRC
+// This one floats in and out, so if there is no
+// sound let it run a while.
+// Execute it four or five times to get a bunch
+// of them going.
+{
+	var totalPartials = 3;
+	Mix.ar(
+		{
+			var base;
+			base = exprand(50, 100);
+			Pan2.ar(
+				Klank.ar(
+					`[ //frequency, amplitudes, and decays
+						{rrand(1, 24) * base *
+							rrand(1.0, 1.1)}.dup(totalPartials),
+						Array.rand(10, 1.0, 5.0).normalizeSum
+					],
+					GrayNoise.ar( rrand(0.03, 0.1))
+				)*max(0, SinOsc.kr(10/rrand(1, 5), mul: 0.005)),
+				LFNoise1.kr(1))
+	}.dup(8)) * abs(LFNoise1.kr(1/10));
+}.play
+#+END_SRC
+** AM Modulation
+*** In SC
+{Saw.ar(500, mul: SinOsc.ar(50, mul: 0.5))}.scope(1)
+
+500 is the carrier, 50 is the modulator. The sidebands are 450 and 550.
+** FM Synthesis
+*** In SC
+{SinOsc.ar(400 + SinOsc.ar(124, mul: 100), mul: 0.5)}.scope(1)
+
+Here, 400 is the carrier, 124 is the modulator and 100 is the index. The higher the index, the more sidebands.
+** PM Modulation
+*** In SC
+{PMOsc.ar(400, 124, 1, mul: 0.5)}.scope(1)
+
+So the carrier is 400, the modulator is 124 and the index is 1.
+*** In theory
+If the modulation index is high enough to generate negative numbers on
+the lower spectrum, they wrap around. A quick SC formula for
+calculating 30 sidebands above and below a given frequency would be
+abs((-30..30)*m+c) where m is the modulator and c is the carrier
+frequency. The example above would be abs((-30..30)*50+400).
+*** In practice
+(i.e. changing the carrier while the modulator frequency and index
+remain the same) will sound like one instrument with a changing
+pitch. Different frequencies of the modulator only will sound like
+different instruments playing the same pitch. Different indexes will
+sound like one instrument being filtered.
+
+#+BEGIN_SRC
+(
+{PMOsc.ar(LFNoise0.kr(5, 300, 700),// carrier
+	134, 4, mul: 0.4)
+}.scope(1)
+)
+
+(
+{PMOsc.ar(700,
+	LFNoise0.kr(5, 500, 700),//modulator
+	12, mul: 0.4
+)}.scope(1)
+)
+
+(
+{PMOsc.ar(700, 567,
+	LFNoise0.kr(5, 6, 12), //index
+	mul: 0.4
+)}.scope(1)
+)
+(
+// All three. This is the type of sound that
+// got me hooked on synthesis in the first place.
+{PMOsc.ar(LFNoise0.kr([9, 9], 300, 700),
+	LFNoise0.kr([9, 9], 500, 700),
+	LFNoise0.kr([9, 9], 6, 12),
+	mul: 0.5
+)}.scope(1)
+)
+#+END_SRC
+
+What I do
+remember are these three things, as they relate to how the sound changes: 
++ carrier = fundamental pitch
++ modulator = character of the wave
++ index = number of partials or filter
+*** Ping Pong
+Fun fun...
+
+#+BEGIN_SRC
+(
+{var freq, ratio, env, rate = 5, trig;
+	trig = Impulse.kr(5);
+	freq = TRand.kr([36, 60], [72, 86], trig).midicps;
+	ratio = 2;
+	env = EnvGen.kr(Env.perc(0, 1/rate), gate: trig);
+	PMOsc.ar(
+		freq,
+		freq*ratio,
+		3 + env*4,
+		mul: env
+)}.play
+)
+#+END_SRC
+*** Using an envelope for modulation index
+Same as using it for a low pass filter really:
+
+#+BEGIN_QUOTE
+{var freq, ratio, env, rate = 5, trig;
+trig = Impulse.kr(5);
+freq = TRand.kr([36, 60], [72, 86], trig).midicps;
+ratio = 2;
+env = EnvGen.kr(Env.perc(0, 1/rate), gate: trig);
+PMOsc.ar(
+freq,
+freq*ratio,
+3 + env*4,
+mul: env
+)}.
+#+END_QUOTE
+*** Using stepper to sequence notes and timbres
+One way, not necessarily the best
+
+#+BEGIN_SRC
+(
+{
+	var freq, freqArray, ratioArray, indexArray,
+	env, rate = 5, trig;
+	trig = Impulse.kr(rate);
+	freqArray = [48, 50, 52, 53, 55, 57, 59, 60,
+		62, 64, 65, 67, 69, 71, 72].scramble.midicps;
+	ratioArray = {rrand(1.0, 3.0)}.dup(20);
+	indexArray = {rrand(1.0, 4.0)}.dup(20);
+	env = EnvGen.kr(Env.perc(0, 1/rate), gate: trig);
+	freq = Select.kr(Stepper.kr(trig, freqArray.size-1), freqArray);
+	PMOsc.ar(
+		freq,
+		freq*Select.kr(Stepper.kr(trig, ratioArray.size-1), ratioArray),
+		Select.kr(Stepper.kr(trig, indexArray.size-1), indexArray)
++ env*4,
+mul: env
+)}.play
+)
+#+END_SRC
+*** Using LFSaw and noise for modulation and index
+potential to experiment here.
+
+#+BEGIN_SRC
+(
+{
+	var pitchArray, sequencer;
+	pitchArray = [60, 62, 64, 65, 67, 69, 71, 72].scramble.midicps.dup(2);
+	
+	sequencer = Select.kr(
+		Stepper.kr(Impulse.kr(3), pitchArray.size-1), pitchArray);
+	PMOsc.ar(
+		carfreq: sequencer,
+		modfreq: LFNoise1.kr(1).range(200, 800),
+		pmindex: LFSaw.kr(freq:1).range(5, 25))
+}.play)
+#+END_SRC
+** Sample and Hold
+*** Basic Idea
+The idea is that even though the sample rate is too low to accurately
+represent the true shape of the wave, patterns will still emerge
+because the wave is periodic, and the sample rate is periodic. Imagine
+for example a saw wave that moves from 0 to 1 once every second,
+returning to 0 at each second. If the sample rate for that wave were
+10 times per second the actual values returned would be 0, 0.1, 0.2,
+0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.0, 0.1, 0.2 etc.  The shape of
+the saw is evident with a sample rate of 10 times per second. But what
+if the sample rate were 0.9 times per second (9 samples in 10
+seconds)? That is to say the amount of time between each sample, or
+strobe flash, is 0.9 seconds. The first value would be 0, then 0.9,
+but the next, taken 0.9 seconds later, would be 0.8, then 0.7, 0.6,
+0.5, 0.4, 0.3, 0.2, 0.1, 0, then 0.9 again, and so on. They look like
+multiples of 9, but since the saw wave resets to 0 each second the
+values never go above 1 (like a modulo).
+*** Can use for other parameters other than frequency
+He uses it to control the other parameters for Pulse Modulation. 
+*** Ratio is super important
+In a previous chapter on intervals we saw that it is the ratio of the two frequencies that
+determines the relative complexity or simplicity of the destructive and constructive
+interference patterns, and therefore the level of consonance or dissonance. The same is true
+for a S&H. The ratio between the frequency of the sampled wave and the sample rate will
+determine the patterns. If we linked the two values the same pattern will persist when the rate
+is changed. I find values
+around 1.6 to 1.75 are pleasing (the golden mean, in case you forgot, is 1.61803399).
+*** Fascinating textures and rhythmic stuff possible when controlling index for PM
+This isn't even changing the frequency.
+
+#+BEGIN_SRC
+(
+{ // controlling index
+	i = Latch.kr(
+		LFSaw.kr(MouseX.kr(1.1, 30), 0, 5, 5),
+		Impulse.kr(10));
+	PMOsc.ar(300, 356, i, mul: 0.3)
+}.scope(1)
+)
+#+END_SRC
+*** TODO Using a complex wave
+This is just great. Note the envelope is also used for the index (classic synth trick there).
+#+BEGIN_SRC
+(
+{
+	f = Latch.kr(
+		Mix.ar(SinOsc.ar([100, 200, 300, 550], mul: 100, add: 110)),
+		Impulse.kr(7));
+	e = EnvGen.kr(Env.perc(0, 0.2), Impulse.kr(7));
+	PMOsc.ar(f, f*1.25, e*5, mul: e*0.3)
+}.play)
+#+END_SRC
+*** Interesting example for generating melodic runs
+Move the mouse again to get some sense of the possibilities with the first one:
+
+#+BEGIN_SRC
+(
+{
+	SinOsc.ar(
+		Latch.kr(
+			LFSaw.kr(MouseX.kr(0.1, 20), 0, 500, 600),
+			Impulse.kr(10)),
+		mul: 0.3 //Volume of Blip
+	)
+}.scope(1)
+)
+#+END_SRC
+
+Listen to this one all the way through
+
+#+BEGIN_SRC
+(
+{
+	SinOsc.ar(
+		Latch.kr(
+			LFSaw.kr(Line.kr(0.1, 20, 60), 0, 500, 600),
+			Impulse.kr(10)),
+		mul: 0.3 //Volume of Blip
+	)
+}.scope(1))
+#+END_SRC
+*** TODO Fantastic Rythms and sounds
+Experiment with in all kinds of ways. Could form the basis of a track, or used to create a really dynamic rhythm section. Or an improvisatory top of something. Loads to explore here.
+#+BEGIN_SRC
+(
+{var freq, latchrate, index, ratio, env, rate;
+	rate = 9;
+	latchrate = rate*LFNoise0.kr(1/10, mul: 0.03, add: 1.6);
+	index = Latch.kr(
+		LFSaw.kr(latchrate, mul: 5, add: 6),
+		Impulse.kr(rate)
+	);
+	freq = Latch.kr(
+		LFSaw.kr(latchrate,
+			mul: max(0, LFNoise1.kr(1/5, 14, 10)),
+			add: LFNoise0.kr(1/7, 22, 50)),
+		Impulse.kr(rate)
+	).round(1).midicps;
+	ratio = LFNoise1.kr(1/10, mul: 2.0, add: 5.0);
+	env = EnvGen.kr(Env.perc(0, LFNoise0.kr(rate, 1, 1.5)/rate), Impulse.kr(rate),
+		LFNoise1.kr([5, 5], 2, 1).max(0).min(0.8));
+	PMOsc.ar(
+		[freq, freq * 1.5],
+		freq*ratio,
+		index,
+		mul: env //overall volume
+)}.play
+)
+#+END_SRC
+** Karplus/Strong ("Pluck")
+*** How it works
+Start with a very short burst of noise (similar to chime):
+
+#+BEGIN_SRC
+(
+{
+	var burstEnv, att = 0, dec = 0.001; //Variable declarations
+	burstEnv = EnvGen.kr(Env.perc(att, dec), gate: Impulse.kr(1)); //envelope
+	PinkNoise.ar(burstEnv); //Noise, amp controlled by burstEnv
+}.play
+)
+#+END_SRC
+
+Then we delay it by using a Comb filter:
+#+BEGIN_SRC
+(
+{
+	var burstEnv, att = 0, dec = 0.001;
+	var out, delayTime = 0.5, delayDecay = 10;
+	burstEnv = EnvGen.kr(Env.perc(att, dec), gate: Impulse.kr(1/delayDecay));
+	out = PinkNoise.ar(burstEnv);
+	out = out + CombL.ar(
+		out,
+		delayTime,
+		delayTime,
+		178
+		delayDecay); //Echo chamber
+	out
+}.play //End Ugen function
+)
+#+END_SRC
+
+Why use noise as an excitation source? Notice that each pluck sound is
+a little different. This is because each new burst of noise is
+slightly different than the previous. (Not the echoes, but the initial
+burst.) The result is subtle, but natural variations to the sound.
+
+The delay time determines the pitch. However, obviously time is the reciprocal of frequency -> desired pitch = 1/delay time
+
+Can do this with:
+
+#+BEGIN_SRC
+69.midicps.reciprocal;
+#+END_SRC
+
+Obviously this should be done inside a synth.
+
+So now we have the following:
+#+BEGIN_SRC
+(
+{
+	var burstEnv, att = 0, dec = 0.001;
+	var burst, delayTime, delayDecay = 0.5;
+	var midiPitch = 69; // A 440
+	delayTime = midiPitch.midicps.reciprocal;
+	// RandSeed.kr(Impulse.kr(1/delayDecay), 111);
+	burstEnv = EnvGen.kr(Env.perc(att, dec), gate: Impulse.kr(1/delayDecay));
+	burst = PinkNoise.ar(burstEnv);
+	CombL.ar(burst, delayTime, delayTime,
+		delayDecay, add: burst);
+}.play
+)
+#+END_SRC
+* Synthesizer Types
+** Pads
+Need rich harmonic structure
+
+Pad must evolve over time. Can do this by:
++ Slight random oscillations in oscillator/timbre
++ Use of LFOs
++ Envelopes to increase/decrease harmonic content.
+
+Structure:
++ Fast attack, long decay
++ Sustain portion just below decay stage, so slow decay, followed by infinite sustain till release.
+
+Create movement by:
++ gradually increasing a low-pass filter's cut off (thus increasing the harmonics in the pad)
+  + Could also do this with FM.
+
+Filter Envelope:
++ Long attack, short decay, low sustain, fast release
+  + Positive filter
+    + Filter's affect opens slowly
+  + Negative filter
+    + Filter's affect sweeps downwards instead
+
+Amp and filter envelopes should operate on different time scales
++ Obviously the filter should open more slowly than amp
+  + Otherwise nothing to operate on.
+
+Good ways to create high harmonic content (subtractive)
++ Saw, triangle, noise and square waves
+  + Sine might be used to add bottom end if necessary
++ good starting point
+  + 2 of the same type (saw, triangle, pulse)
+    + detuned by -3, -5 cents
+    + Creates a phasing effect between oscillators, widening affect
++ Creating analogue affect
+  + Saw, triangle, noise or sine LFO
+    + Pitch, or volume of one/more oscillators
+    
+If Pad is being used as a lead (or must fill hole in mix):
++ third oscillator and detune by +3, or +5
+  + Creates more substantial timbre
+  + Should be a different waveform
+    + Triangle to create sparkling affect
+    + Square wave to create hollow character
+*** Rise and Fall pad
+*** Rise and Fall
+
+#+BEGIN_SRC
+SynthDef(\RiseFallPad, {|freq=440, gate=1|
+
+	var osc1 = Saw.ar(freq + LFTri.kr(0.3, 0, 1));
+	var osc2 = Saw.ar((freq.cpsmidi - 0.03).midicps);
+	var filterEnv = EnvGen.kr(Env.adsr(1, 0.7, 0.0, 0.2), gate);
+    var ampEnv = EnvGen.ar(Env.adsr(0.1, 0.01, 0.6, 1.5), gate, doneAction: 2);
+
+	//+ (200*filterEnv)
+
+	var out = osc1 + osc2;
+	out = RLPF.ar(out, 3000 *filterEnv + freq, 1.5);
+//	out = RLPF.ar(((2*osc1) + (osc2))/3, (freq / 6 + 75), 1/qRes);
+	out =  out * ampEnv;
+	Out.ar(0, (out* 2).dup(2));
+}).load;
+#+END_SRC
